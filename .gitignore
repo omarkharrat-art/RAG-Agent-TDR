@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.env
+
+# Docker
+docker-compose.override.yml
+
+# VS Code / Visual Studio
+.vscode/
+.vs/
+*.code-workspace
+
+# Data and storage
+/backend/data/
+/backend/embeddings/
+/backend/data/*
+/qdrant_storage/
+/tdr_data/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Environment examples should be kept, but ignore local env files
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Ignore local build artifacts
+*.egg-info/
+/dist/
+/build/
+
+# Keep sample env template tracked
+!.env.example
