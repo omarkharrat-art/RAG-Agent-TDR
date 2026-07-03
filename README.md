@@ -136,6 +136,40 @@ The assistant answers **in the same language as the question** and only from the
 
 ---
 
+## Example questions
+
+The corpus is bilingual (French / English) TDR documents, so you can ask in either language.
+These questions return grounded, well-cited answers against the sample corpus:
+
+**French**
+
+- « Quels sont les livrables attendus d'une mission de consultance ? »
+- « Quelle est la durée typique d'une mission ? »
+- « Quelles qualifications sont requises pour le consultant ? »
+- « Quel est l'objet de la mission de consultance ? »
+- « Comment les candidats sont-ils évalués et notés ? »
+
+**English**
+
+- "What qualifications are required for the consultant?"
+- "What are the expected deliverables of the mission?"
+- "How are candidates evaluated and scored?"
+- "What is the scope of the consultancy mission?"
+
+**Try it from the command line:**
+
+```bash
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Quels sont les livrables attendus?", "context_limit": 4}'
+```
+
+> **Note:** the assistant answers **only** from the indexed TDR documents. Ask it
+> something outside the corpus (e.g. "What is the capital of France?") and it will
+> correctly say it cannot answer from the provided context — it does not make things up.
+
+---
+
 ## Configuration
 
 Set via `.env` (see `.env.example`):
