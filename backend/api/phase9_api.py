@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from backend.agentic.graph import run_rag_graph
 from backend.core import config, qdrant_client, ollama_client
+from backend.api.routes import agent, filters, search
 
 
 class QueryRequest(BaseModel):
@@ -25,6 +26,13 @@ app = FastAPI(
     description="Backend API for TDR retrieval and generation.",
     version="0.1.0",
 )
+
+# Modular routers: /search (retrieval only), /filters (corpus metadata),
+# /agent (full RAG pipeline). The top-level /query and /evaluate endpoints
+# below are kept for backward compatibility.
+app.include_router(search.router)
+app.include_router(filters.router)
+app.include_router(agent.router)
 
 
 def _require_services() -> None:
