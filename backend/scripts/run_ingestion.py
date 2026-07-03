@@ -22,6 +22,7 @@ Prerequisites:
     - Ollama running (for the phase0 LLM classifier)
 """
 
+import os
 import subprocess
 import sys
 import time
@@ -52,8 +53,11 @@ def run_phase(label: str, module: str) -> bool:
     print("=" * 70)
 
     start = time.time()
-    # Inherit stdout/stderr so each phase's own progress output streams live.
-    result = subprocess.run([sys.executable, "-m", module])
+    # Force UTF-8 in the child so a phase that prints emoji doesn't crash on
+    # Windows' default cp1252 console encoding. Inherit stdout/stderr so each
+    # phase's own progress output streams live.
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
+    result = subprocess.run([sys.executable, "-m", module], env=env)
     elapsed = time.time() - start
 
     if result.returncode != 0:

@@ -1,9 +1,17 @@
 import json
 import os
+import sys
 from pathlib import Path
 from typing import List, Dict, Any
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+# Fix Unicode output on Windows terminals (cp1252 -> utf-8). Without this,
+# the emoji in this script's print() calls crash it when run as a subprocess.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 
 INPUT_FILE = "backend/data/cleaned/phase2_cleaned.json"
 OUTPUT_FILE = "backend/data/chunks/phase3_chunks.json"
