@@ -1,11 +1,13 @@
 import json
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.agentic.graph import run_rag_graph
 from backend.core import config, qdrant_client, ollama_client
-from backend.api.routes import agent, filters, search
+from backend.api import chat_store
+from backend.api.routes import agent, chat, filters, search
 
 
 class QueryRequest(BaseModel):
@@ -27,12 +29,29 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Allow the React dev server / containerized frontend to call the API.
+# Tighten allow_origins for production if the frontend is served elsewhere.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    # Create the chat history tables if they don't exist yet.
+    chat_store.init_db()
+
+
 # Modular routers: /search (retrieval only), /filters (corpus metadata),
-# /agent (full RAG pipeline). The top-level /query and /evaluate endpoints
-# below are kept for backward compatibility.
+# /agent (full RAG pipeline), /conversations (persisted chat history). The
+# top-level /query and /evaluate endpoints below are kept for compatibility.
 app.include_router(search.router)
 app.include_router(filters.router)
 app.include_router(agent.router)
+app.include_router(chat.router)
 
 
 def _require_services() -> None:

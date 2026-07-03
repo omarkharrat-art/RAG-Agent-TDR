@@ -32,8 +32,24 @@ services:
       - QDRANT_PORT=6333
       - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434/api/generate}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:latest}
+    volumes:
+      # Persist the SQLite chat history (data/chat.db) across restarts.
+      - backend_data:/app/backend/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: tdr_frontend
+    depends_on:
+      - backend
+    ports:
+      - '3000:80'
     restart: unless-stopped
 
 volumes:
   qdrant_storage:
+    driver: local
+  backend_data:
     driver: local
