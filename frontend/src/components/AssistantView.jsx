@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import HistorySidebar from "./HistorySidebar.jsx";
 import ChatMessage from "./ChatMessage.jsx";
+import DocumentPicker from "./DocumentPicker.jsx";
 import { ArrowUp } from "./icons.jsx";
 import {
   listConversations,
@@ -23,6 +24,7 @@ export default function AssistantView() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [selectedDoc, setSelectedDoc] = useState(null);
 
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
@@ -96,7 +98,7 @@ export default function AssistantView() {
         setActiveId(convId);
       }
 
-      const res = await sendMessage(convId, query);
+      const res = await sendMessage(convId, query, { document: selectedDoc });
 
       setMessages((m) => {
         const kept = m.filter((x) => !x.pending);
@@ -133,29 +135,35 @@ export default function AssistantView() {
 
       <section className="chat">
         <div className="chat-scroll" ref={scrollRef}>
-          {isEmpty ? (
-            <div className="chat-empty">
-              <div className="beam-lg" />
-              <h2>Assistant TdR</h2>
-              <p>
-                Posez une question en français ou en anglais. Les réponses sont
-                générées à partir des TdR indexés, avec les sources citées.
-              </p>
-              <div className="suggestions">
-                {SUGGESTIONS.map((s) => (
-                  <button key={s} onClick={() => submit(s)}>
-                    {s}
-                  </button>
-                ))}
+          <div className="chat-inner">
+            {isEmpty ? (
+              <div className="chat-empty">
+                <div className="beam-lg" />
+                <h2>Assistant TdR</h2>
+                <p>
+                  Posez une question en français ou en anglais. Les réponses
+                  sont générées à partir des TdR indexés, avec les sources
+                  citées.
+                </p>
+                <div className="suggestions">
+                  {SUGGESTIONS.map((s) => (
+                    <button key={s} onClick={() => submit(s)}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
-            messages.map((m) => <ChatMessage key={m.id} message={m} />)
-          )}
-          {error && <div className="banner">{error}</div>}
+            ) : (
+              messages.map((m) => <ChatMessage key={m.id} message={m} />)
+            )}
+            {error && <div className="banner">{error}</div>}
+          </div>
         </div>
 
         <div className="composer">
+          <div className="composer-tools">
+            <DocumentPicker value={selectedDoc} onChange={setSelectedDoc} />
+          </div>
           <div className="box">
             <textarea
               ref={textareaRef}

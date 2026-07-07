@@ -7,13 +7,14 @@ from pydantic import BaseModel
 from backend.agentic.graph import run_rag_graph
 from backend.core import config, qdrant_client, ollama_client
 from backend.api import chat_store
-from backend.api.routes import agent, chat, filters, search
+from backend.api.routes import agent, chat, documents, filters, search
 
 
 class QueryRequest(BaseModel):
     query: str
     context_limit: int = 5
     temperature: float = 0.2
+    document: str | None = None  # restrict retrieval to this exact filename
 
 
 class EvaluateRequest(QueryRequest):
@@ -52,6 +53,7 @@ app.include_router(search.router)
 app.include_router(filters.router)
 app.include_router(agent.router)
 app.include_router(chat.router)
+app.include_router(documents.router)
 
 
 def _require_services() -> None:
@@ -105,6 +107,7 @@ def query(request: QueryRequest) -> dict:
         user_query=request.query,
         context_limit=request.context_limit,
         temperature=request.temperature,
+        filename=request.document,
     )
 
     return {
@@ -112,6 +115,10 @@ def query(request: QueryRequest) -> dict:
         "query": request.query,
         "answer": result.get("answer", ""),
         "sources": result.get("sources", []),
+        # Agentic loop diagnostics: how many retry cycles ran and the
+        # reflection verdict, so the UI can surface the self-correction.
+        "retries": result.get("retries", 0),
+        "reflection": result.get("reflection", {}),
     }
 
 

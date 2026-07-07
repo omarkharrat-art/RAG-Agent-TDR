@@ -28,16 +28,21 @@ export function getHealth() {
 }
 
 // ── Search (retrieval only) ──────────────────────────────────────
-export function search(query, limit = 10) {
+export function search(query, limit = 10, document = null) {
   return request("/search", {
     method: "POST",
-    body: JSON.stringify({ query, limit }),
+    body: JSON.stringify({ query, limit, document }),
   });
 }
 
 // ── Corpus metadata (for filters) ────────────────────────────────
 export function listDocuments() {
   return request("/filters/documents");
+}
+
+// URL to open/view an original TdR PDF in the browser.
+export function documentUrl(filename) {
+  return `${BASE}/documents/${encodeURIComponent(filename)}`;
 }
 
 // ── Conversations (persisted chat history) ───────────────────────
@@ -67,6 +72,7 @@ export function sendMessage(conversationId, query, opts = {}) {
       query,
       context_limit: opts.contextLimit ?? 5,
       temperature: opts.temperature ?? 0.2,
+      document: opts.document ?? null,
     }),
   });
 }

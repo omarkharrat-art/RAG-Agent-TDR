@@ -23,6 +23,7 @@ class NewMessage(BaseModel):
     query: str
     context_limit: int = 5
     temperature: float = 0.2
+    document: str | None = None  # restrict retrieval to this filename
 
 
 def _title_from_query(query: str, max_len: int = 48) -> str:
@@ -84,17 +85,22 @@ def post_message(conversation_id: str, body: NewMessage) -> dict:
         user_query=query,
         context_limit=body.context_limit,
         temperature=body.temperature,
+        filename=body.document,
     )
     answer = result.get("answer", "")
     sources = result.get("sources", [])
-    expanded = result.get("expanded_queries", [])
-    n_chunks = len(result.get("context_chunks", []))
 
-    # Short "agentic" note surfaced in the UI reflection banner.
-    reflection = (
-        f"Requête reformulée en {len(expanded)} variantes · "
-        f"{n_chunks} TdR consultés"
-    )
+    # Short "agentic" note surfaced in the UI reflection banner. Reflects which
+    # branch the LangGraph router took: the count tool, or the RAG pipeline.
+    if result.get("route") == "count":
+        reflection = "Outil : comptage des documents du corpus"
+    else:
+        expanded = result.get("expanded_queries", [])
+        n_chunks = len(result.get("context_chunks", []))
+        reflection = (
+            f"Requête reformulée en {len(expanded)} variantes · "
+            f"{n_chunks} TdR consultés"
+        )
 
     assistant_msg = chat_store.add_message(
         conversation_id, "assistant", answer, sources=sources, reflection=reflection

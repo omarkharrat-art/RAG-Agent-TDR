@@ -18,6 +18,7 @@ router = APIRouter(prefix="/search", tags=["search"])
 class SearchRequest(BaseModel):
     query: str
     limit: int = 5
+    document: str | None = None  # restrict search to this filename
 
 
 @router.post("")
@@ -29,7 +30,9 @@ def search(request: SearchRequest) -> dict:
     if not qdrant_client.check_qdrant_health():
         raise HTTPException(status_code=503, detail="Qdrant is unavailable.")
 
-    chunks = retrieve_context(request.query, limit=request.limit)
+    chunks = retrieve_context(
+        request.query, limit=request.limit, filename=request.document
+    )
 
     return {
         "status": "success",
