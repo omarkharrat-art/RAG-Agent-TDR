@@ -32,6 +32,10 @@ services:
       - QDRANT_PORT=6333
       - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434/api/generate}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:latest}
+      # Reranker is disabled by default because the model download is large and
+      # unreliable on some connections, and it is slow on CPU. Set to True once
+      # the model is fully cached (or on a GPU host) to enable reranking.
+      - RERANK_ENABLED=${RERANK_ENABLED:-False}
     volumes:
       # Bind-mount the real data directory so the container sees the raw PDFs
       # (served by /documents) and the ingested data, and so the SQLite chat
