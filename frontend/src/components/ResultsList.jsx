@@ -12,7 +12,11 @@ export default function ResultsList({ results, query }) {
       </div>
       <div className="results">
         {results.map((r, i) => (
-          <ResultCard key={`${r.filename}-${r.chunk_index}-${i}`} result={r} />
+          <ResultCard
+            key={`${r.filename}-${r.chunk_index}-${i}`}
+            result={r}
+            query={query}
+          />
         ))}
       </div>
     </>

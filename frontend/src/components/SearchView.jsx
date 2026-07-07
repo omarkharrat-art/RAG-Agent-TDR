@@ -5,7 +5,7 @@ import ResultsList from "./ResultsList.jsx";
 import LoadingIndicator from "./LoadingIndicator.jsx";
 import { search } from "../services/api.js";
 
-export default function SearchView() {
+export default function SearchView({ docCount }) {
   const [results, setResults] = useState(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,8 +39,8 @@ export default function SearchView() {
           Trouvez le bon <span className="accent">Terme de Référence</span>
         </h1>
         <p>
-          Recherche sémantique sur les TdR indexés — profils, compétences et
-          missions similaires.
+          Recherche sémantique sur {docCount != null ? docCount : "les"} TdR
+          indexés — profils, compétences et missions similaires.
         </p>
       </div>
 

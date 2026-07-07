@@ -33,8 +33,10 @@ services:
       - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434/api/generate}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:latest}
     volumes:
-      # Persist the SQLite chat history (data/chat.db) across restarts.
-      - backend_data:/app/backend/data
+      # Bind-mount the real data directory so the container sees the raw PDFs
+      # (served by /documents) and the ingested data, and so the SQLite chat
+      # history (data/chat.db) persists on the host across restarts.
+      - ./backend/data:/app/backend/data
     restart: unless-stopped
 
   frontend:
@@ -50,6 +52,4 @@ services:
 
 volumes:
   qdrant_storage:
-    driver: local
-  backend_data:
     driver: local

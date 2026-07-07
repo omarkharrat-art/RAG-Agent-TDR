@@ -1,12 +1,15 @@
 import { Sun, Moon } from "./icons.jsx";
+import LogoEY from "./LogoEY.jsx";
 
-export default function Header({ tab, onTab, theme, onToggleTheme }) {
+export default function Header({ tab, onTab, theme, onToggleTheme, docCount }) {
   return (
     <header className="header">
       <div className="brand">
-        <div className="beam" />
-        <span className="ey">EY</span>
+        <LogoEY height={38} />
         <span className="app-name">TdR&nbsp;Explorer</span>
+        {docCount != null && (
+          <span className="corpus-badge">{docCount} TdR</span>
+        )}
       </div>
       <nav className="nav">
         <button

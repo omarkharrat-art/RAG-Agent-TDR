@@ -1,3 +1,6 @@
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import ReflectionBanner from "./ReflectionBanner.jsx";
 import SimilarMissions from "./SimilarMissions.jsx";
 import LoadingIndicator from "./LoadingIndicator.jsx";
@@ -23,7 +26,14 @@ export default function ChatMessage({ message }) {
         ) : (
           <>
             <ReflectionBanner text={message.reflection} />
-            <div className="answer">{message.content}</div>
+            <div className="answer markdown">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
             <SimilarMissions sources={message.sources} />
           </>
         )}
