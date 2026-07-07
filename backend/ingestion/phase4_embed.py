@@ -82,7 +82,12 @@ for i, chunk in enumerate(chunks):
             "chunk_id": chunk["chunk_id"],
             "filename": chunk["filename"],
             "chunk_index": chunk["chunk_index"],
-            "content": chunk["content"]
+            # `content` is the small child text (what we embedded).
+            "content": chunk["content"],
+            # Hierarchical retrieval: keep the parent link + full parent text so
+            # the retriever can return the large block for LLM context.
+            "parent_id": chunk.get("parent_id"),
+            "parent_content": chunk.get("parent_content", chunk["content"]),
         }
     )
     points_batch.append(point)

@@ -60,3 +60,4 @@ Thumbs.db
 
 # Keep sample env template tracked
 !.env.example
+backend/ingestion/tessdata/
