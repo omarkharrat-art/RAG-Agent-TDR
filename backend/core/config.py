@@ -20,6 +20,15 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "tdr_documents")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "ibm-granite/granite-embedding-97m-multilingual-r2")
 VECTOR_SIZE = int(os.getenv("VECTOR_SIZE", "384"))
 
+# Reranker Settings
+# A cross-encoder re-scores the initial embedding results by relevance so the
+# best chunk reaches the LLM. bge-reranker-v2-m3 is multilingual (FR/EN/AR).
+# Set RERANK_ENABLED=False to fall back to embedding-only retrieval.
+RERANK_ENABLED = os.getenv("RERANK_ENABLED", "True").lower() == "true"
+RERANK_MODEL = os.getenv("RERANK_MODEL", "BAAI/bge-reranker-v2-m3")
+# How many candidates to pull from Qdrant before reranking down to `limit`.
+RERANK_CANDIDATES = int(os.getenv("RERANK_CANDIDATES", "20"))
+
 # Ollama LLM Settings
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")

@@ -111,10 +111,70 @@ def _to_vector_list(raw) -> list[float]:
     return list(raw)
 
 
+# ── Cross-encoder reranker ───────────────────────────────────────────
+# Embedding search is fast but only finds "same-topic" chunks. A cross-encoder
+# reads (query, chunk) TOGETHER and scores true relevance, so the chunk that
+# actually answers the question rises to the top. We load it lazily and fail
+# safe: if it can't load, retrieval falls back to embedding order.
+
+_reranker = None
+_reranker_failed = False
+
+
+def _get_reranker():
+    """Lazily load the cross-encoder reranker, or None if unavailable."""
+    global _reranker, _reranker_failed
+    if _reranker is not None or _reranker_failed:
+        return _reranker
+
+    try:
+        import torch as _torch  # type: ignore
+        from sentence_transformers import CrossEncoder  # type: ignore
+
+        device = "cuda" if _torch.cuda.is_available() else "cpu"
+        print(f"🔁 Loading reranker {config.RERANK_MODEL} on {device}...")
+        _reranker = CrossEncoder(config.RERANK_MODEL, device=device)
+        print("✅ Reranker loaded")
+    except Exception as e:
+        _reranker_failed = True
+        logger.warning(
+            "Reranker unavailable (%s). Falling back to embedding-only order.", e
+        )
+        print(f"⚠️ Reranker unavailable ({e}); using embedding order.")
+    return _reranker
+
+
+def _rerank(query: str, candidates: list[dict], limit: int) -> list[dict]:
+    """Re-score candidate chunks by (query, chunk) relevance, best first.
+
+    Returns the top `limit`. If the reranker is disabled or fails to load, the
+    candidates are returned unchanged (already sorted by embedding score).
+    """
+    if not config.RERANK_ENABLED or len(candidates) <= 1:
+        return candidates[:limit]
+
+    reranker = _get_reranker()
+    if reranker is None:
+        return candidates[:limit]
+
+    try:
+        pairs = [[query, c.get("content", "")] for c in candidates]
+        scores = reranker.predict(pairs)
+        for c, s in zip(candidates, scores):
+            c["rerank_score"] = float(s)
+        candidates.sort(key=lambda c: c["rerank_score"], reverse=True)
+        print(f"🔁 Reranked {len(candidates)} candidates → top {limit}")
+    except Exception as e:
+        # Never let a reranker error break retrieval; keep embedding order.
+        print(f"⚠️ Rerank failed ({e}); keeping embedding order.")
+    return candidates[:limit]
+
+
 def retrieve_context(
     user_query: str,
     limit: int = 5,
     expanded_queries: list[str] | None = None,
+    filename: str | None = None,
 ) -> list[dict]:
     """Retrieves relevant text chunks from Qdrant using expanded queries.
 
@@ -164,8 +224,14 @@ def retrieve_context(
             # Generate embedding for this query
             query_vector = _to_vector_list(model.encode(q))
             
-            # Search Qdrant - fetch more than limit to account for deduplication
-            points = qdrant_client.search_similar_points(query_vector, limit=limit * 3)
+            # Search Qdrant. When reranking, cast a WIDER net (RERANK_CANDIDATES)
+            # so the truly-relevant chunk is in the pool for the cross-encoder to
+            # surface; otherwise fetch a smaller multiple of the final limit.
+            # `filename`, when set, restricts retrieval to a single document.
+            fetch_limit = config.RERANK_CANDIDATES if config.RERANK_ENABLED else limit * 3
+            points = qdrant_client.search_similar_points(
+                query_vector, limit=fetch_limit, filename=filename
+            )
             
             if points:
                 print(f"   Found {len(points)} results for: '{q}'")
@@ -181,35 +247,48 @@ def retrieve_context(
         print(f"⚠️ No relevant context found for query: '{user_query}'")
         return []
     
-    # 4. Deduplicate results by chunk_id (keep highest scoring for each chunk)
-    seen_chunk_ids = {}
-    
+    # 4. Deduplicate by PARENT (hierarchical / small-to-big retrieval).
+    #    We matched on small child chunks, but several children can belong to
+    #    the same parent section — collapse them into one result and return the
+    #    parent_content so the LLM sees the full block (e.g. a whole table).
+    #    Falls back to chunk_id / content for older, non-hierarchical indexes.
+    seen = {}
+
     for point in all_results:
         payload = point.payload or {}
         chunk_id = payload.get("chunk_id")
-        
+
         # Skip points without chunk_id
         if not chunk_id:
             print(f"⚠️ Skipping point without chunk_id: {payload}")
             continue
-        
-        # Keep the highest scoring version of each chunk
-        if chunk_id not in seen_chunk_ids or point.score > seen_chunk_ids[chunk_id]["score"]:
-            seen_chunk_ids[chunk_id] = {
+
+        # Key by parent when present so sibling children merge into one result.
+        dedup_key = payload.get("parent_id") or chunk_id
+        # Prefer the large parent block; fall back to child content if absent.
+        content = payload.get("parent_content") or payload.get("content", "")
+
+        # Keep the highest scoring child for each parent.
+        if dedup_key not in seen or point.score > seen[dedup_key]["score"]:
+            seen[dedup_key] = {
                 "chunk_id": chunk_id,
+                "parent_id": payload.get("parent_id"),
                 "filename": payload.get("filename", "Unknown"),
                 "chunk_index": payload.get("chunk_index", 0),
-                "content": payload.get("content", ""),
+                "content": content,
                 "answer": payload.get("answer"),
-                "score": point.score
+                "score": point.score,
             }
-    
-    unique_results = list(seen_chunk_ids.values())
-    
-    # 5. Sort deduplicated results by score in descending order
+
+    unique_results = list(seen.values())
+
+    # 5. Sort deduplicated results by embedding score (the reranker will refine
+    #    this, but ordering first keeps behavior sane if reranking is disabled).
     unique_results.sort(key=lambda x: x["score"], reverse=True)
-    
+
     print(f"✅ Retrieved {len(unique_results)} unique chunks after deduplication")
-    
-    # 6. Return top 'limit' results
-    return unique_results[:limit]
+
+    # 6. Rerank against the ORIGINAL user query (not the expansions) and return
+    #    the top `limit`. Reranking on the real question is what fixes the
+    #    "right document, wrong chunk" problem embedding-only search has.
+    return _rerank(user_query, unique_results, limit)
