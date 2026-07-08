@@ -76,11 +76,16 @@ GENERATION_PROMPT = ChatPromptTemplate.from_messages([
         "- Answer directly. Do NOT restate the question or add filler like "
         "'According to the provided context'.\n"
         "- Be concise: a short lead sentence, then Markdown bullet points for the "
-        "key facts. Bold the important term in each bullet.\n"
-        "- When the user asks for a table, or when the context data is naturally "
-        "tabular (criteria + scores, columns of values, comparison grids), format "
-        "the answer as a Markdown table with a header row and one row per item. "
-        "TABLE RULES: (a) reproduce every row and every column exactly; (b) keep "
+        "key facts. Bold the important term in each bullet. Use bullets ONLY for "
+        "facts that have no associated value.\n"
+        "- DEFAULT TO A MARKDOWN TABLE (not bullets) whenever each item has an "
+        "associated value — criteria with weights/percentages/scores, tasks with "
+        "durations/deadlines, amounts, comparison grids — EVEN IF the user did not "
+        "say 'tableau' or 'table'. A list of criteria each followed by a % or a "
+        "score must be rendered as a two-column table, never as a bulleted list.\n"
+        "- If the retrieved context already contains a Markdown table that answers "
+        "the question, reproduce that table as-is (same rows, columns and values).\n"
+        "- TABLE RULES: (a) reproduce every row and every column exactly; (b) keep "
         "each value on the SAME row as its own label — never shift text into the "
         "wrong column; (c) for a nested table where a category (e.g. 'Offre "
         "technique 60%') has sub-criteria that each carry their own value, put "
@@ -220,6 +225,56 @@ def format_context(chunks: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
+def _looks_like_value(s: str) -> bool:
+    """True for short, number-bearing strings like '30%', '10 points', '84'."""
+    s = s.strip()
+    return bool(s) and len(s) <= 24 and bool(re.search(r"\d", s)) and bool(
+        re.search(r"%|points?|pts?|jours?|H/J|€|\$|\d", s)
+    )
+
+
+def _bullets_to_table(answer: str) -> str:
+    """Deterministically turn a bulleted value-list into a Markdown table.
+
+    A 3B model sometimes ignores the 'use a table' instruction and returns
+    bullets like '- Critère X : 30%'. When every bullet in a contiguous block
+    ends in a value, we rewrite the block as a two-column table so the user
+    always gets a table for tabular data — regardless of the model's whim.
+    Leaves the answer untouched if it already contains a table or isn't a
+    clean value-list.
+    """
+    if not answer or "|" in answer:  # already a table or contains pipes
+        return answer
+
+    lines = answer.split("\n")
+    idxs = [i for i, l in enumerate(lines) if re.match(r"^\s*[-*•]\s+", l)]
+    if len(idxs) < 2 or idxs != list(range(idxs[0], idxs[-1] + 1)):
+        return answer  # need a single contiguous block of >=2 bullets
+
+    rows = []
+    for i in idxs:
+        text = re.sub(r"^\s*[-*•]\s+", "", lines[i]).strip()
+        label = value = None
+        if ":" in text or "：" in text:
+            label, value = re.split(r"[:：]", text, maxsplit=1)[0].strip(), \
+                re.split(r"[:：]", text, maxsplit=1)[1].strip()
+        else:
+            m = re.match(r"^(.*?)\s*\(([^()]+)\)\s*$", text)  # 'label (30%)'
+            if m:
+                label, value = m.group(1).strip(), m.group(2).strip()
+        if not label or not _looks_like_value(value or ""):
+            return answer  # a non-value bullet → don't convert, stay safe
+        rows.append((label, value))
+
+    col2 = "Pondération" if any("%" in v for _, v in rows) else "Valeur"
+    table = [f"| Critère | {col2} |", "|---|---|"]
+    table += [f"| {lbl} | {val} |" for lbl, val in rows]
+
+    pre = "\n".join(lines[: idxs[0]]).strip()
+    post = "\n".join(lines[idxs[-1] + 1:]).strip()
+    return "\n\n".join(p for p in [pre, "\n".join(table), post] if p)
+
+
 def generate_node(state: RAGState) -> RAGState:
     chunks = state.get("context_chunks", [])
 
@@ -244,6 +299,9 @@ def generate_node(state: RAGState) -> RAGState:
         "context": context,
         "question": state["query"],
     })
+
+    # Guarantee a table for value-lists even if the model returned bullets.
+    answer = _bullets_to_table(answer)
 
     return {"answer": _append_sources(answer, chunks)}
 

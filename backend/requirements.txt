@@ -9,5 +9,6 @@ langchain-ollama>=0.0.0
 langchain-text-splitters>=0.0.1
 langgraph>=0.0.0
 pymupdf>=1.22.0
+pdfplumber>=0.11.0
 pytesseract>=0.3.10
 Pillow>=10.0.0

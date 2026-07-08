@@ -2,6 +2,7 @@ import sys
 import pytesseract
 from pytesseract import Output
 import fitz
+import pdfplumber
 import json
 import os
 from PIL import Image
@@ -111,6 +112,66 @@ def extract_with_ocr(filepath):
         return None
 
 # ============================================
+# TABLE-AWARE EXTRACTION (text-native PDFs)
+# ============================================
+def _table_to_markdown(rows) -> str:
+    """Convert a pdfplumber table (list of rows) into a clean Markdown table.
+
+    Drops empty rows and empty padding columns, and rejects false positives
+    (paragraphs pdfplumber sometimes reports as single-column 'tables').
+    Returns '' if the result isn't a real multi-column table.
+    """
+    rows = [[(c or "").replace("\n", " ").strip() for c in r] for r in rows]
+    rows = [r for r in rows if any(c for c in r)]
+    if len(rows) < 2:
+        return ""
+
+    ncol = max(len(r) for r in rows)
+    rows = [r + [""] * (ncol - len(r)) for r in rows]
+
+    # Keep only columns that hold content in at least one row.
+    keep = [ci for ci in range(ncol) if any(rows[ri][ci] for ri in range(len(rows)))]
+    rows = [[r[ci] for ci in keep] for r in rows]
+    if len(keep) < 2:
+        return ""
+    # Need at least two rows with 2+ filled cells — otherwise it's prose.
+    if sum(1 for r in rows if sum(1 for c in r if c) >= 2) < 2:
+        return ""
+
+    md = ["| " + " | ".join(rows[0]) + " |", "|" + "|".join(["---"] * len(keep)) + "|"]
+    for r in rows[1:]:
+        md.append("| " + " | ".join(r) + " |")
+    return "\n".join(md)
+
+
+def extract_standard_with_tables(filepath) -> str:
+    """Extract a text-native PDF, appending any real tables as Markdown.
+
+    Plain text extraction flattens tables into a line stream, which the LLM
+    struggles to reconstruct. Here we keep the normal page text AND append each
+    detected table as a proper Markdown grid, so the model receives ready-made
+    tables instead of having to rebuild them.
+    """
+    parts = []
+    with pdfplumber.open(filepath) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text() or ""
+            tables_md = []
+            try:
+                for tb in page.extract_tables():
+                    md = _table_to_markdown(tb)
+                    if md:
+                        tables_md.append(md)
+            except Exception as e:
+                print(f"         table detection error: {e}")
+            page_out = text
+            if tables_md:
+                page_out += "\n\n--- Tableau ---\n" + "\n\n".join(tables_md)
+            parts.append(page_out)
+    return "\n".join(parts).strip()
+
+
+# ============================================
 # GET ALL PDFS
 # ============================================
 pdf_files = [f for f in os.listdir(INPUT_FOLDER) if f.lower().endswith('.pdf')]
@@ -132,20 +193,19 @@ for filename in pdf_files:
     print(f"📖 Reading: {filename}")
     
     try:
+        # Fast probe with PyMuPDF to decide standard (text-native) vs OCR.
         doc = fitz.open(filepath)
-        full_text = ""
-        
-        for page in doc:
-            full_text += page.get_text()
-        
+        probe_text = "".join(page.get_text() for page in doc)
         doc.close()
-        char_count = len(full_text.strip())
-        
+        char_count = len(probe_text.strip())
+
         if char_count >= MIN_CHARS_THRESHOLD:
-            print(f"   └─ ✅ {char_count} characters extracted\n")
+            # Text-native: re-extract with pdfplumber so tables become Markdown.
+            full_text = extract_standard_with_tables(filepath)
+            print(f"   └─ ✅ {len(full_text)} characters extracted (table-aware)\n")
             results.append({
                 "filename": filename,
-                "content": full_text.strip(),
+                "content": full_text,
                 "extraction_method": "standard"
             })
             standard_count += 1
