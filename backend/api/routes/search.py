@@ -19,19 +19,32 @@ class SearchRequest(BaseModel):
     query: str
     limit: int = 5
     document: str | None = None  # restrict search to this filename
+    expand: bool = False  # LLM query expansion — off by default for fast search
 
 
 @router.post("")
 def search(request: SearchRequest) -> dict:
-    """Return the top matching chunks for a query, no answer generation."""
+    """Return the top matching chunks for a query, no answer generation.
+
+    By default this skips LLM query expansion: embedding search already handles
+    synonyms well, so for interactive search we send the raw query straight to
+    the vector DB (one search, no Ollama round-trip) — much faster. Pass
+    expand=True to opt into multi-variation retrieval.
+    """
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="The query field must not be empty.")
 
     if not qdrant_client.check_qdrant_health():
         raise HTTPException(status_code=503, detail="Qdrant is unavailable.")
 
+    # Passing expanded_queries=[query] bypasses the internal LLM expansion and
+    # runs a single vector search instead of one per variation.
+    expanded = None if request.expand else [request.query]
     chunks = retrieve_context(
-        request.query, limit=request.limit, filename=request.document
+        request.query,
+        limit=request.limit,
+        filename=request.document,
+        expanded_queries=expanded,
     )
 
     return {
