@@ -13,7 +13,7 @@
   --tx: #ffffff;
   --tx2: #a6a6b2;
   --tx3: #74747f;
-  --acc: #ffe600;
+  --acc: #f2c94c;
   --acc-tx: #1a1a24;
   --field: #2c2c39;
   --field-tx: #e6e6ec;
@@ -31,7 +31,7 @@
   --tx: #1f2029;
   --tx2: #5f6270;
   --tx3: #8a8d99;
-  --acc: #ffe600;
+  --acc: #f2c94c;
   --acc-tx: #1a1a24;
   --field: #ffffff;
   --field-tx: #1f2029;
@@ -1014,4 +1014,134 @@ button {
   .src .fn {
     max-width: 120px;
   }
+}
+
+/* ── Search history side panel ─────────────────────────────────── */
+/* The layout is a flex row: history panel + search view. Toggling
+   .with-history expands the panel, which pushes the search view over. */
+.search-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.history-panel {
+  width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--side);
+  border-right: 1px solid var(--bd);
+  transition: width 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+.search-layout.with-history .history-panel {
+  width: 280px;
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 10px;
+  font-weight: 600;
+  color: var(--tx);
+  white-space: nowrap;
+}
+.history-clear {
+  background: none;
+  border: none;
+  color: var(--tx3);
+  font-size: 12px;
+  cursor: pointer;
+}
+.history-clear:hover {
+  color: var(--acc);
+}
+.history-empty {
+  color: var(--tx3);
+  font-size: 13px;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px;
+  overflow-y: auto;
+}
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+}
+.history-item:hover {
+  background: var(--hov);
+}
+.history-q {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 9px 8px;
+  cursor: pointer;
+  text-align: left;
+}
+.history-q-text {
+  color: var(--tx);
+  font-size: 13px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-q-meta {
+  color: var(--tx3);
+  font-size: 11px;
+}
+.history-del {
+  background: none;
+  border: none;
+  color: var(--tx3);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 8px;
+  opacity: 0;
+}
+.history-item:hover .history-del {
+  opacity: 1;
+}
+.history-del:hover {
+  color: #e24b4a;
+}
+
+.hero-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.history-toggle {
+  background: var(--field);
+  border: 1px solid var(--bd);
+  color: var(--tx2);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.history-toggle:hover {
+  color: var(--tx);
+  border-color: var(--acc);
+}
+.history-toggle.on {
+  background: var(--acc);
+  color: var(--acc-tx);
+  border-color: var(--acc);
 }
