@@ -13,6 +13,7 @@ Ask natural-language questions — in French or English — and get answers grou
 ![LangGraph](https://img.shields.io/badge/LangGraph-Agentic-1C3C3C)
 ![Qdrant](https://img.shields.io/badge/Qdrant-Vector%20DB-DC244C)
 ![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-000000)
+![Groq](https://img.shields.io/badge/Groq-Cloud%20LLM-F55036)
 ![React](https://img.shields.io/badge/React-Frontend-61DAFB?logo=react&logoColor=black)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 
@@ -26,6 +27,7 @@ Ask natural-language questions — in French or English — and get answers grou
 - **🌍 Multilingual** — French / English (and Arabic-aware) via IBM Granite multilingual embeddings; answers in the language of the question.
 - **📚 Grounded & cited** — answers use only the retrieved context and list their source documents; the assistant refuses questions outside the corpus instead of hallucinating.
 - **🎯 Document scoping** — restrict a question to a single TDR for focused, accurate answers.
+- **🔌 Pluggable LLM** — run fully local on **Ollama** or switch to **Groq** cloud (`llama-3.3-70b`) with a single `.env` setting — no code changes.
 - **🔢 Metadata tools** — corpus-level questions like *“how many TDRs do you have?”* are routed to a dedicated tool that reads the true count.
 - **🖥️ Full-stack** — FastAPI backend + a polished React UI (semantic search, chat assistant, persistent history).
 - **📄 Robust ingestion** — PDF text extraction with OCR fallback (French Tesseract + table-layout reconstruction) for scanned documents.
@@ -73,9 +75,9 @@ Ask natural-language questions — in French or English — and get answers grou
 | Orchestration  | LangGraph · LangChain |
 | Vector DB      | Qdrant |
 | Embeddings     | `ibm-granite/granite-embedding-97m-multilingual-r2` (384-dim) |
-| LLM            | Ollama — `mistral` (default), configurable |
+| LLM            | Pluggable — **Ollama** (local) or **Groq** (cloud, `llama-3.3-70b`), switched via `LLM_PROVIDER` |
 | Reranker*      | `BAAI/bge-reranker-v2-m3` cross-encoder (*opt-in, off by default*) |
-| Ingestion      | PyMuPDF · Tesseract OCR (fra + eng) |
+| Ingestion      | PyMuPDF · pdfplumber (table extraction) · Tesseract OCR (fra + eng) |
 | Frontend       | React · Vite · react-markdown, served by nginx |
 
 \* The reranker improves “right document, wrong chunk” accuracy but is heavy on CPU, so it ships **disabled** (`RERANK_ENABLED=False`). Enable it on a GPU / higher-RAM host.
@@ -111,10 +113,12 @@ docker-compose.yml     # Qdrant + backend + frontend
 
 ### Prerequisites
 - **Docker Desktop**
-- **[Ollama](https://ollama.com)** running on the host with a model pulled:
-  ```bash
-  ollama pull mistral
-  ```
+- **An LLM provider** — either:
+  - **[Ollama](https://ollama.com)** (local, default) with a model pulled:
+    ```bash
+    ollama pull mistral
+    ```
+  - **or [Groq](https://console.groq.com)** (cloud) — set `LLM_PROVIDER=groq` and `GROQ_API_KEY=<your key>` in `.env`. No local model needed.
 
 ### 1 — Configure
 ```bash
@@ -150,7 +154,7 @@ Place TDR PDFs in `backend/data/raw/`, then run the full pipeline
 python -m backend.scripts.run_ingestion
 ```
 
-Sample corpus: **47 TDR documents → ~5,300 indexed chunks.**
+Sample corpus: **47 TDR documents → ~5,900 indexed chunks.**
 
 ---
 
@@ -219,7 +223,9 @@ Set via `.env` (see `.env.example`):
 | `QDRANT_HOST` / `QDRANT_PORT` | `localhost` / `6333` | Qdrant connection |
 | `COLLECTION_NAME` | `tdr_documents` | Qdrant collection |
 | `EMBEDDING_MODEL` | `ibm-granite/granite-embedding-97m-multilingual-r2` | Sentence-transformer model |
+| `LLM_PROVIDER`    | `ollama` | LLM backend: `ollama` (local) or `groq` (cloud) |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | `…:11434` / `mistral:latest` | Ollama endpoint + model |
+| `GROQ_API_KEY` / `GROQ_MODEL` | — / `llama-3.3-70b-versatile` | Required when `LLM_PROVIDER=groq` |
 | `RERANK_ENABLED`  | `False` | Enable the cross-encoder reranker (GPU/high-RAM recommended) |
 | `DEBUG_MODE`      | `False` | Verbose logging |
 
@@ -246,5 +252,5 @@ docker logs tdr_backend -f    # follow backend logs
 ---
 
 <div align="center">
-<sub>Built with FastAPI · LangGraph · Qdrant · Ollama · React</sub>
+<sub>Built with FastAPI · LangGraph · Qdrant · Ollama / Groq · React</sub>
 </div>
