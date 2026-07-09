@@ -29,9 +29,18 @@ RERANK_MODEL = os.getenv("RERANK_MODEL", "BAAI/bge-reranker-v2-m3")
 # How many candidates to pull from Qdrant before reranking down to `limit`.
 RERANK_CANDIDATES = int(os.getenv("RERANK_CANDIDATES", "20"))
 
-# Ollama LLM Settings
+# LLM provider selection: "ollama" (local) or "groq" (cloud API).
+# Switch by changing LLM_PROVIDER in .env and restarting the backend.
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
+
+# Ollama LLM Settings (local provider)
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
+
+# Groq LLM Settings (cloud provider). GROQ_API_KEY is required when
+# LLM_PROVIDER=groq. Get a free key at https://console.groq.com
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 # Logging
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() == "true"
@@ -106,7 +115,9 @@ def get_config_summary() -> dict:
         "collection_name": COLLECTION_NAME,
         "embedding_model": EMBEDDING_MODEL,
         "vector_size": VECTOR_SIZE,
+        "llm_provider": LLM_PROVIDER,
         "ollama_url": OLLAMA_URL,
         "ollama_model": OLLAMA_MODEL,
+        "groq_model": GROQ_MODEL,
         "debug_mode": DEBUG_MODE,
     }

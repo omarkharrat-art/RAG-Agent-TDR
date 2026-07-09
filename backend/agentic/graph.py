@@ -40,25 +40,13 @@ DEFAULT_TEMPERATURE = 0.2
 
 # ── LangChain LLM + prompt ───────────────────────────────────────
 
-_OLLAMA_BASE_URL = config.OLLAMA_URL.replace("/api/generate", "")
+# The chat model comes from the provider-aware factory (Ollama or Groq),
+# selected by config.LLM_PROVIDER. See backend/core/llm.py.
+def _get_llm(temperature: float):
+    from backend.core.llm import get_chat_llm
 
-# ChatOllama instances cached by temperature. temperature must be set at
-# construction time (ChatOllama maps it into Ollama's `options`); passing it
-# via .bind() leaks it as a raw kwarg into the underlying Client.chat(), which
-# newer langchain-ollama rejects with "unexpected keyword argument 'temperature'".
-_llm_cache: dict[float, ChatOllama] = {}
+    return get_chat_llm(temperature)
 
-
-def _get_llm(temperature: float) -> ChatOllama:
-    llm = _llm_cache.get(temperature)
-    if llm is None:
-        llm = ChatOllama(
-            model=config.OLLAMA_MODEL,
-            base_url=_OLLAMA_BASE_URL,
-            temperature=temperature,
-        )
-        _llm_cache[temperature] = llm
-    return llm
 
 GENERATION_PROMPT = ChatPromptTemplate.from_messages([
     (
@@ -233,6 +221,43 @@ def _looks_like_value(s: str) -> bool:
     )
 
 
+def _reflow_inline_tables(answer: str) -> str:
+    """Put an inline Markdown table onto its own lines so it actually renders.
+
+    Small models sometimes emit a whole table on ONE line (often inside a
+    bullet): "… : | Critère | % | | --- | --- | | A | 35% | …". Markdown only
+    renders tables that occupy their own lines, so inline like that it shows as
+    raw pipes. This detects such a line and splits it into proper rows.
+    """
+    out = []
+    for line in answer.split("\n"):
+        if line.count("|") >= 5 and re.search(r"\|\s*-{2,}\s*\|", line):
+            i = line.index("|")
+            prose = line[:i].strip()
+            cells = [c.strip() for c in line[i:].split("|")]
+            cells = [c for c in cells if c != ""]
+            dash = [j for j, c in enumerate(cells) if re.fullmatch(r"-{2,}", c)]
+            if not dash:
+                out.append(line)
+                continue
+            ncol = len(dash)
+            header, body = cells[:ncol], cells[2 * ncol:]
+            rows = [
+                "| " + " | ".join(header) + " |",
+                "| " + " | ".join(["---"] * ncol) + " |",
+            ]
+            for k in range(0, len(body), ncol):
+                r = body[k:k + ncol]
+                r += [""] * (ncol - len(r))
+                rows.append("| " + " | ".join(r) + " |")
+            if prose:
+                out.append(prose)
+            out.append("\n".join(rows))
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
 def _bullets_to_table(answer: str) -> str:
     """Deterministically turn a bulleted value-list into a Markdown table.
 
@@ -300,7 +325,9 @@ def generate_node(state: RAGState) -> RAGState:
         "question": state["query"],
     })
 
-    # Guarantee a table for value-lists even if the model returned bullets.
+    # Reflow any inline table onto its own lines so Markdown renders it,
+    # then guarantee a table for value-lists even if the model used bullets.
+    answer = _reflow_inline_tables(answer)
     answer = _bullets_to_table(answer)
 
     return {"answer": _append_sources(answer, chunks)}

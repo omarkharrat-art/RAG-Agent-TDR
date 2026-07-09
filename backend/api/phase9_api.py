@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.agentic.graph import run_rag_graph
-from backend.core import config, qdrant_client, ollama_client
+from backend.core import config, qdrant_client, ollama_client, llm
 from backend.api import chat_store
 from backend.api.routes import agent, chat, documents, filters, search
 
@@ -60,8 +60,14 @@ def _require_services() -> None:
     """Raise 503 if a backing service is unavailable."""
     if not qdrant_client.check_qdrant_health():
         raise HTTPException(status_code=503, detail="Qdrant is unavailable.")
-    if not ollama_client.check_ollama_health():
-        raise HTTPException(status_code=503, detail="Ollama is unavailable.")
+    # Provider-aware: pings Ollama when local, or checks the Groq key when cloud.
+    if not llm.check_llm_health():
+        detail = (
+            "Groq API key is not configured (set GROQ_API_KEY)."
+            if config.LLM_PROVIDER == "groq"
+            else "Ollama is unavailable."
+        )
+        raise HTTPException(status_code=503, detail=detail)
 
 
 @app.get("/")
@@ -74,16 +80,17 @@ def health() -> dict:
     from backend.agentic.retriever import is_using_fallback
 
     qdrant_ok = qdrant_client.check_qdrant_health()
-    ollama_ok = ollama_client.check_ollama_health()
+    llm_ok = llm.check_llm_health()
     using_fallback = is_using_fallback()
 
     # Fallback embeddings mean retrieval is effectively broken, so report
-    # the service as degraded even if Qdrant/Ollama are reachable.
-    status = "healthy" if (qdrant_ok and ollama_ok and not using_fallback) else "unhealthy"
+    # the service as degraded even if Qdrant/the LLM are reachable.
+    status = "healthy" if (qdrant_ok and llm_ok and not using_fallback) else "unhealthy"
     return {
         "status": status,
         "qdrant": qdrant_ok,
-        "ollama": ollama_ok,
+        "llm_provider": config.LLM_PROVIDER,
+        "llm": llm_ok,
         "embeddings": "fallback (non-semantic)" if using_fallback else "ok",
         "config": config.get_config_summary(),
     }
@@ -159,7 +166,7 @@ def _grade_answer(question: str, llm_answer: str, ground_truth: str) -> dict:
         "Return only valid JSON."
     )
 
-    comp_resp = ollama_client.query_ollama(
+    comp_resp = llm.complete(
         prompt=compare_prompt,
         system_prompt=compare_system,
         temperature=0.0,

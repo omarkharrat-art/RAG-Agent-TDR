@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from backend.agentic.graph import run_rag_graph
 from backend.api import chat_store
-from backend.core import qdrant_client, ollama_client
+from backend.core import qdrant_client, llm
 
 router = APIRouter(prefix="/conversations", tags=["chat"])
 
@@ -69,8 +69,8 @@ def post_message(conversation_id: str, body: NewMessage) -> dict:
 
     if not qdrant_client.check_qdrant_health():
         raise HTTPException(status_code=503, detail="Qdrant is unavailable.")
-    if not ollama_client.check_ollama_health():
-        raise HTTPException(status_code=503, detail="Ollama is unavailable.")
+    if not llm.check_llm_health():
+        raise HTTPException(status_code=503, detail="The LLM provider is unavailable.")
 
     # Persist the user's turn first.
     user_msg = chat_store.add_message(conversation_id, "user", query)

@@ -1,7 +1,7 @@
 import json
 import re
 import sys
-from backend.core.ollama_client import query_ollama
+from backend.core.llm import complete as query_ollama
 
 # Fix Unicode output on Windows terminals
 if hasattr(sys.stdout, 'reconfigure'):

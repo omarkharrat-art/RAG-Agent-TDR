@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.agentic.graph import run_rag_graph
-from backend.core import ollama_client, qdrant_client
+from backend.core import llm, qdrant_client
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -28,8 +28,8 @@ def agent_query(request: AgentRequest) -> dict:
 
     if not qdrant_client.check_qdrant_health():
         raise HTTPException(status_code=503, detail="Qdrant is unavailable.")
-    if not ollama_client.check_ollama_health():
-        raise HTTPException(status_code=503, detail="Ollama is unavailable.")
+    if not llm.check_llm_health():
+        raise HTTPException(status_code=503, detail="The LLM provider is unavailable.")
 
     result = run_rag_graph(
         user_query=request.query,
