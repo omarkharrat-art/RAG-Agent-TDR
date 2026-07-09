@@ -112,6 +112,7 @@ export default function SearchView({ docCount }) {
       </aside>
 
       <main className="search-view">
+        <div className="hero-band">
         <div className="hero">
           <div className="hero-top">
             <button
@@ -133,6 +134,7 @@ export default function SearchView({ docCount }) {
 
         <SearchBar onSearch={runSearch} loading={loading} />
         <FilterPanel active={activeFilters} onToggle={toggleFilter} />
+        </div>
 
         {error && <div className="banner">{error}</div>}
 

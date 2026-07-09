@@ -179,6 +179,48 @@ button {
   min-height: 0;
   overflow-y: auto;
   padding: 30px 24px 40px;
+  /* Full-page EY building photo behind a dark overlay for legibility.
+     Drop the photo at frontend/public/ey-building.jpg. */
+  background: linear-gradient(180deg, rgba(11, 12, 18, 0.34), rgba(11, 12, 18, 0.5)),
+    url("/ey-building.jpg") center / cover no-repeat fixed;
+}
+
+/* Frosted-glass card holding the hero + search + filters. */
+.hero-band {
+  max-width: 660px;
+  margin: 34px auto 26px;
+  padding: 36px 30px 28px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(9px) saturate(115%);
+  -webkit-backdrop-filter: blur(9px) saturate(115%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+}
+.hero-band .hero h1 {
+  color: #fff;
+}
+.hero-band .hero p {
+  color: #d6d8e0;
+}
+.hero-band .chip {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #e6e6ee;
+  background: rgba(255, 255, 255, 0.04);
+}
+.hero-band .chip:hover {
+  border-color: var(--acc);
+  color: #fff;
+}
+/* Text that sits directly on the photo (below the card) stays light. */
+.search-view .empty-state {
+  color: #c9ccd4;
+}
+.search-view .results-head {
+  color: #d6d8e0;
+}
+.search-view .results-head b {
+  color: #fff;
 }
 .hero {
   text-align: center;
@@ -520,9 +562,17 @@ button {
   flex-direction: column;
   flex-shrink: 0;
   min-height: 0;
+  overflow: hidden;
+}
+/* Pinned header (the "Nouvelle conversation" button) — never shrinks. */
+/* Only this list scrolls, so the button stays a fixed size. */
+.sidebar-list {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 .btn-new {
+  flex-shrink: 0;
   background: var(--acc);
   color: var(--acc-tx);
   border: none;

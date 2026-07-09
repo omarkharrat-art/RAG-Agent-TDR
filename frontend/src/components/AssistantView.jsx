@@ -3,6 +3,7 @@ import HistorySidebar from "./HistorySidebar.jsx";
 import ChatMessage from "./ChatMessage.jsx";
 import DocumentPicker from "./DocumentPicker.jsx";
 import { ArrowUp } from "./icons.jsx";
+import LogoEY from "./LogoEY.jsx";
 import {
   listConversations,
   createConversation,
@@ -138,7 +139,7 @@ export default function AssistantView() {
           <div className="chat-inner">
             {isEmpty ? (
               <div className="chat-empty">
-                <div className="beam-lg" />
+                <LogoEY height={58} letter="var(--tx)" />
                 <h2>Assistant TdR</h2>
                 <p>
                   Posez une question en français ou en anglais. Les réponses

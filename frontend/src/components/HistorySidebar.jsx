@@ -33,38 +33,40 @@ export default function HistorySidebar({
         Nouvelle conversation
       </button>
 
-      {conversations.length === 0 && (
-        <div className="sidebar-empty">Aucune conversation pour l'instant.</div>
-      )}
+      <div className="sidebar-list">
+        {conversations.length === 0 && (
+          <div className="sidebar-empty">Aucune conversation pour l'instant.</div>
+        )}
 
-      {Object.entries(groups).map(([label, items]) =>
-        items.length === 0 ? null : (
-          <div key={label}>
-            <div className="hgroup-label">{label}</div>
-            {items.map((c) => (
-              <button
-                key={c.id}
-                className={"hitem" + (c.id === activeId ? " active" : "")}
-                onClick={() => onSelect(c.id)}
-              >
-                <Message size={14} />
-                <span className="htitle">{c.title}</span>
-                <span
-                  className="del"
-                  role="button"
-                  aria-label="Supprimer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(c.id);
-                  }}
+        {Object.entries(groups).map(([label, items]) =>
+          items.length === 0 ? null : (
+            <div key={label}>
+              <div className="hgroup-label">{label}</div>
+              {items.map((c) => (
+                <button
+                  key={c.id}
+                  className={"hitem" + (c.id === activeId ? " active" : "")}
+                  onClick={() => onSelect(c.id)}
                 >
-                  <Trash size={14} />
-                </span>
-              </button>
-            ))}
-          </div>
-        )
-      )}
+                  <Message size={14} />
+                  <span className="htitle">{c.title}</span>
+                  <span
+                    className="del"
+                    role="button"
+                    aria-label="Supprimer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(c.id);
+                    }}
+                  >
+                    <Trash size={14} />
+                  </span>
+                </button>
+              ))}
+            </div>
+          )
+        )}
+      </div>
     </aside>
   );
 }
