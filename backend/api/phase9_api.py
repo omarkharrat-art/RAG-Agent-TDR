@@ -45,6 +45,24 @@ def _startup() -> None:
     # Create the chat history tables if they don't exist yet.
     chat_store.init_db()
 
+    # Pre-load the embedding model so the first real query is fast instead of
+    # paying the ~80s CPU load lazily. Run it in a BACKGROUND thread so startup
+    # never blocks: the app starts serving immediately, and the model finishes
+    # warming shortly after. (A blocking load here can hang the whole app — and
+    # return 502s — if the model has to touch a slow network.)
+    import threading
+
+    def _warm():
+        try:
+            from backend.agentic.retriever import get_embedding_model
+            print("⏳ Warming up embedding model in background...")
+            get_embedding_model()
+            print("✅ Embedding model ready.")
+        except Exception as e:
+            print(f"⚠️ Embedding warm-up failed (will load lazily): {e}")
+
+    threading.Thread(target=_warm, daemon=True).start()
+
 
 # Modular routers: /search (retrieval only), /filters (corpus metadata),
 # /agent (full RAG pipeline), /conversations (persisted chat history). The

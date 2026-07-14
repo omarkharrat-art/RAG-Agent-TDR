@@ -40,6 +40,11 @@ services:
       # unreliable on some connections, and it is slow on CPU. Set to True once
       # the model is fully cached (or on a GPU host) to enable reranking.
       - RERANK_ENABLED=${RERANK_ENABLED:-False}
+      # Load ML models from the local HF cache without contacting the Hub.
+      # The embedding model is already downloaded; this avoids a slow/hanging
+      # network check on every model load (which caused 80s+ stalls / 502s).
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
     volumes:
       # Bind-mount the real data directory so the container sees the raw PDFs
       # (served by /documents) and the ingested data, and so the SQLite chat
